@@ -1,0 +1,16 @@
+{
+  "dataset": "PneumoniaMNIST (MedMNIST v2), 128x128",
+  "test_set_size": 624,
+  "accuracy": 0.9326923076923077,
+  "precision": 0.9142857142857143,
+  "recall_sensitivity": 0.9846153846153847,
+  "auc": 0.9796296296296296,
+  "false_negative_rate": 0.015384615384615385,
+  "false_positive_rate": 0.15384615384615385,
+  "confusion_matrix": {
+    "tn": 198,
+    "fp": 36,
+    "fn": 6,
+    "tp": 384
+  }
+}
