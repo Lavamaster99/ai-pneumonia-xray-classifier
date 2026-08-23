@@ -1,0 +1,9 @@
+# Shell scripts must keep LF line endings no matter what -- a CRLF-mangled
+# shebang ("#!/bin/bash\r") fails with "bad interpreter" on macOS/Linux.
+# This overrides core.autocrlf so a Windows checkout can't silently
+# corrupt them (which would also poison any release zip built from this
+# working tree).
+*.sh text eol=lf
+
+# Batch files are Windows-only; keep them CRLF, their native convention.
+*.bat text eol=crlf

@@ -1,5 +1,8 @@
 """
-Streamlit dashboard for the pneumonia chest-X-ray CNN.
+Streamlit dashboard for two CNN screening models sharing one dashboard --
+chest X-ray pneumonia and breast ultrasound malignancy -- switched via the
+mode selector below the header. Each mode has its own model, metrics, and
+copy; everything else (theme, layout, Grad-CAM) is shared.
 
 Run with:
     streamlit run app.py
@@ -18,10 +21,65 @@ from PIL import Image
 from gradcam import make_gradcam_heatmap, overlay_heatmap, find_last_conv_layer
 
 IMG_SIZE = 128
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "model", "pneumonia_cnn.keras")
-METRICS_PATH = os.path.join(os.path.dirname(__file__), "reports", "metrics.json")
+BASE_DIR = os.path.dirname(__file__)
 
-st.set_page_config(page_title="Chest X-Ray Pneumonia Screener", page_icon=":material/monitor_heart:", layout="wide")
+MODES = {
+    "pneumonia": {
+        "nav_label": "Chest X-ray — Pneumonia",
+        "model_path": os.path.join(BASE_DIR, "model", "pneumonia_cnn.keras"),
+        "metrics_path": os.path.join(BASE_DIR, "reports", "metrics.json"),
+        "train_script": "train_model.py",
+        "lede": (
+            "A convolutional neural network trained on the PneumoniaMNIST benchmark "
+            "(pediatric chest X-rays, Kermany et al. / MedMNIST v2) with Grad-CAM "
+            "explainability, so every prediction shows its work."
+        ),
+        "upload_label": "Upload a chest X-ray image",
+        "upload_help": "JPG or PNG. examples/sample_pneumonia.png and examples/sample_normal.png in this repo work for a quick try.",
+        "positive_label": "Pneumonia",
+        "negative_label": "Normal",
+        "uploaded_caption": "Uploaded X-ray",
+        "how_it_works": [
+            "Upload a chest X-ray image",
+            "The CNN outputs a pneumonia probability",
+            "Grad-CAM shows what it looked at",
+        ],
+        "no_sample_text": (
+            "Don't have one handy? The [PneumoniaMNIST test set on Zenodo]"
+            "(https://zenodo.org/records/10519652) or any public chest X-ray "
+            "sample image will work."
+        ),
+    },
+    "breast": {
+        "nav_label": "Breast ultrasound — Malignancy",
+        "model_path": os.path.join(BASE_DIR, "model", "breast_cnn.keras"),
+        "metrics_path": os.path.join(BASE_DIR, "reports", "breast_metrics.json"),
+        "train_script": "train_breast_model.py",
+        "lede": (
+            "A convolutional neural network trained on the BreastMNIST benchmark "
+            "(breast ultrasound images, Al-Dhabyani et al. / MedMNIST v2) with "
+            "Grad-CAM explainability. Trained on a much smaller dataset (780 images) "
+            "than the pneumonia model — weigh its confidence accordingly."
+        ),
+        "upload_label": "Upload a breast ultrasound image",
+        "upload_help": "JPG or PNG. examples/sample_benign.png and examples/sample_malignant.png in this repo work for a quick try.",
+        "positive_label": "Malignant",
+        "negative_label": "Normal / Benign",
+        "uploaded_caption": "Uploaded ultrasound",
+        "how_it_works": [
+            "Upload a breast ultrasound image",
+            "The CNN outputs a malignancy probability",
+            "Grad-CAM shows what it looked at",
+        ],
+        "no_sample_text": (
+            "Don't have one handy? `examples/sample_benign.png` and "
+            "`examples/sample_malignant.png` in this repo work, or any "
+            "BreastMNIST sample from [medmnist.com](https://medmnist.com/)."
+        ),
+    },
+}
+
+st.set_page_config(page_title="Medical Imaging Screening Tool", page_icon=":material/monitor_heart:", layout="wide")
 
 # ---------------------------------------------------------------------------
 # Icons -- simple stroke-based line icons (hand-drawn, 24x24), not emoji.
@@ -66,14 +124,14 @@ def icon(name: str, size: int = 18, color: str = "var(--ink-soft)", stroke: floa
 
 
 @st.cache_resource
-def load_model():
-    return tf.keras.models.load_model(MODEL_PATH)
+def load_model(path: str):
+    return tf.keras.models.load_model(path)
 
 
 @st.cache_data
-def load_metrics():
-    if os.path.exists(METRICS_PATH):
-        with open(METRICS_PATH) as f:
+def load_metrics(path: str):
+    if os.path.exists(path):
+        with open(path) as f:
             return json.load(f)
     return None
 
@@ -233,6 +291,20 @@ st.html(
         border-radius: 999px !important; border: 1px solid var(--line) !important;
         font-weight: 700 !important; box-shadow: var(--shadow) !important;
       }
+      /* Own every button's color pairing through our own tokens rather than
+         Streamlit's native button skin (which is fixed-dark regardless of
+         theme) -- this is also what the mode switch below uses: the active
+         mode renders as a primary button, the inactive one as secondary. */
+      [data-testid="stBaseButton-secondary"] {
+        background: var(--panel) !important; color: var(--ink-soft) !important;
+        border: 1px solid var(--line) !important; border-radius: 999px !important;
+        font-weight: 700 !important;
+      }
+      [data-testid="stBaseButton-primary"] {
+        background: var(--accent) !important; color: #fff !important;
+        border: none !important; border-radius: 999px !important; font-weight: 700 !important;
+      }
+      [data-testid="stBaseButton-primary"]:hover { background: var(--accent-ink) !important; }
 
       /* ---- Result card ---- */
       .result-card { border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow); padding: 18px; margin-top: 4px; }
@@ -292,9 +364,9 @@ st.html(
     f"""
     <div class="app-header">
       <div class="id">
-        <div class="mark">{icon('lungs', 22, '#FFFFFF')}</div>
+        <div class="mark">{icon('activity', 22, '#FFFFFF')}</div>
         <div>
-          <div class="name">Chest X-Ray Pneumonia Screener</div>
+          <div class="name">Medical Imaging Screening Tool</div>
           <div class="tag">Computational medicine &middot; CNN + Grad-CAM</div>
         </div>
       </div>
@@ -302,10 +374,35 @@ st.html(
         {icon('github', 16, 'var(--ink-soft)')} View source
       </a>
     </div>
-    <p class="lede">
-      A convolutional neural network trained on the PneumoniaMNIST benchmark (pediatric chest X-rays,
-      Kermany et al. / MedMNIST v2) with Grad-CAM explainability, so every prediction shows its work.
-    </p>
+    """
+)
+
+if "mode" not in st.session_state:
+    st.session_state.mode = "pneumonia"
+
+nav_col1, nav_col2 = st.columns(2)
+with nav_col1:
+    if st.button(
+        MODES["pneumonia"]["nav_label"],
+        type="primary" if st.session_state.mode == "pneumonia" else "secondary",
+        use_container_width=True,
+    ) and st.session_state.mode != "pneumonia":
+        st.session_state.mode = "pneumonia"
+        st.rerun()
+with nav_col2:
+    if st.button(
+        MODES["breast"]["nav_label"],
+        type="primary" if st.session_state.mode == "breast" else "secondary",
+        use_container_width=True,
+    ) and st.session_state.mode != "breast":
+        st.session_state.mode = "breast"
+        st.rerun()
+
+mode = MODES[st.session_state.mode]
+
+st.html(
+    f"""
+    <p class="lede">{mode['lede']}</p>
     <div class="banner-warn">
       <span class="ic">{icon('alert', 18, 'var(--bad)')}</span>
       <span><b>Not a medical device.</b> This is a student research/engineering demonstration, not a
@@ -314,15 +411,15 @@ st.html(
     """
 )
 
-if not os.path.exists(MODEL_PATH):
+if not os.path.exists(mode["model_path"]):
     st.error(
-        "No trained model found yet. Run `python train_model.py` first to "
-        "train and save `model/pneumonia_cnn.keras`."
+        f"No trained model found yet for this mode. Run `python {mode['train_script']}` "
+        f"first to train and save `{os.path.relpath(mode['model_path'], BASE_DIR)}`."
     )
     st.stop()
 
-model = load_model()
-metrics = load_metrics()
+model = load_model(mode["model_path"])
+metrics = load_metrics(mode["metrics_path"])
 last_conv = find_last_conv_layer(model)
 
 with st.sidebar:
@@ -348,30 +445,25 @@ with st.sidebar:
         with st.expander("Full metrics JSON"):
             st.json(metrics)
     else:
-        st.info("Run train_model.py to generate reports/metrics.json")
+        st.info(f"Run {mode['train_script']} to generate {os.path.relpath(mode['metrics_path'], BASE_DIR)}")
 
     st.divider()
     st.html(
         f"""<div class="sb-title">{icon('flask', 15, 'var(--accent)')}How it works</div>"""
     )
-    st.html(
-        """<div class="sb-steps">
-        1. Upload a chest X-ray image<br>
-        2. The CNN outputs a pneumonia probability<br>
-        3. Grad-CAM shows what it looked at
-        </div>"""
-    )
+    steps_html = "<br>".join(f"{i}. {step}" for i, step in enumerate(mode["how_it_works"], 1))
+    st.html(f'<div class="sb-steps">{steps_html}</div>')
 
-uploaded = st.file_uploader("Upload a chest X-ray image", type=["jpg", "jpeg", "png"])
+uploaded = st.file_uploader(mode["upload_label"], type=["jpg", "jpeg", "png"], help=mode["upload_help"])
 
 if uploaded is not None:
     pil_img = Image.open(uploaded)
     img_array = preprocess(pil_img)
 
     prob = float(model.predict(img_array, verbose=0)[0, 0])
-    label = "Pneumonia" if prob >= 0.5 else "Normal"
+    label = mode["positive_label"] if prob >= 0.5 else mode["negative_label"]
     confidence = prob if prob >= 0.5 else 1 - prob
-    is_pos = label == "Pneumonia"
+    is_pos = label == mode["positive_label"]
 
     heatmap = make_gradcam_heatmap(img_array, model, last_conv)
     display_img = np.uint8(img_array[0, :, :, 0] * 255)
@@ -381,7 +473,7 @@ if uploaded is not None:
     with col1:
         st.image(pil_img, use_container_width=True)
         st.html(
-            f'<div class="img-card"><div class="cap">{icon("upload", 14, "var(--accent)")}Uploaded X-ray</div></div>'
+            f'<div class="img-card"><div class="cap">{icon("upload", 14, "var(--accent)")}{mode["uploaded_caption"]}</div></div>'
         )
     with col2:
         st.image(overlay, channels="BGR", use_container_width=True)
@@ -405,14 +497,10 @@ if uploaded is not None:
             <div class="conf-chip {chip_class}">{confidence*100:.1f}% confidence</div>
           </div>
           <div class="bar-track"><div class="bar-fill" style="width:{prob*100:.1f}%"></div></div>
-          <div class="bar-caption"><span>Normal</span><span>Pneumonia probability: {prob*100:.1f}%</span><span>Pneumonia</span></div>
+          <div class="bar-caption"><span>{mode['negative_label']}</span><span>{mode['positive_label']} probability: {prob*100:.1f}%</span><span>{mode['positive_label']}</span></div>
         </div>
         """
     )
 else:
-    st.info("Upload a chest X-ray image above to run a prediction.")
-    st.markdown(
-        "Don't have one handy? The [PneumoniaMNIST test set on Zenodo]"
-        "(https://zenodo.org/records/10519652) or any public chest X-ray "
-        "sample image will work."
-    )
+    st.info(f"{mode['upload_label']} above to run a prediction.")
+    st.markdown(mode["no_sample_text"])

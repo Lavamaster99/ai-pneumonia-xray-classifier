@@ -1,0 +1,17 @@
+{
+  "dataset": "BreastMNIST (MedMNIST v2), 128x128, 780 images total",
+  "test_set_size": 156,
+  "positive_class": "malignant",
+  "accuracy": 0.6858974358974359,
+  "precision": 0.45454545454545453,
+  "recall_sensitivity": 0.8333333333333334,
+  "auc": 0.848579782790309,
+  "false_negative_rate": 0.16666666666666666,
+  "false_positive_rate": 0.3684210526315789,
+  "confusion_matrix": {
+    "tn": 72,
+    "fp": 42,
+    "fn": 7,
+    "tp": 35
+  }
+}

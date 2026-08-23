@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-title Pneumonia Screening Tool
+title Medical Imaging Screening Tool
 
 cd /d "%~dp0"
 
@@ -26,7 +26,7 @@ if not exist venv (
 netstat -ano | findstr ":8501" | findstr "LISTENING" >nul 2>nul
 if not errorlevel 1 goto :open_window
 
-start "Pneumonia Screening Tool - SERVER (keep open, closing this stops the app)" /min cmd /c "venv\Scripts\streamlit.exe run app.py --server.headless true --server.port 8501"
+start "Medical Imaging Screening Tool - SERVER (keep open, closing this stops the app)" /min cmd /c "venv\Scripts\streamlit.exe run app.py --server.headless true --server.port 8501"
 
 set READY=0
 for /l %%i in (1,1,45) do (

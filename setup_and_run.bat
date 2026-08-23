@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-title Chest X-Ray Pneumonia Screening Tool - Setup
+title Medical Imaging Screening Tool - Setup
 color 0B
 
 cd /d "%~dp0"
@@ -9,7 +9,7 @@ cls
 echo.
 echo   ######################################################
 echo   #                                                    #
-echo   #     CHEST X-RAY PNEUMONIA SCREENING TOOL            #
+echo   #     MEDICAL IMAGING SCREENING TOOL                  #
 echo   #     One-click installer for Windows                #
 echo   #                                                    #
 echo   ######################################################
@@ -121,7 +121,7 @@ rem [2/5] Copy the app to a permanent location
 rem ---------------------------------------------------------------
 echo   [2/5] Installing to your PC...
 
-set "INSTALL_DIR=%LOCALAPPDATA%\PneumoniaScreeningTool"
+set "INSTALL_DIR=%LOCALAPPDATA%\MedicalScreeningTool"
 set "SOURCE_DIR=%~dp0"
 if "%SOURCE_DIR:~-1%"=="\" set "SOURCE_DIR=%SOURCE_DIR:~0,-1%"
 
@@ -195,7 +195,7 @@ rem [5/5] Desktop shortcut, so this full setup only ever runs once
 rem ---------------------------------------------------------------
 echo   [5/5] Creating a desktop shortcut...
 
-set SHORTCUT_NAME=Pneumonia Screening Tool.lnk
+set SHORTCUT_NAME=Medical Screening Tool.lnk
 
 rem Desktop is a "Known Folder" that can be redirected (e.g. into
 rem OneDrive) -- %USERPROFILE%\Desktop in plain batch doesn't know
@@ -209,7 +209,7 @@ for /f "delims=" %%r in ('powershell -NoProfile -Command ^
     "  $s.WorkingDirectory = '%INSTALL_DIR%';" ^
     "  $s.WindowStyle = 7;" ^
     "  $s.IconLocation = 'shell32.dll,167';" ^
-    "  $s.Description = 'Chest X-Ray Pneumonia Screening Tool';" ^
+    "  $s.Description = 'Medical Imaging Screening Tool';" ^
     "  $s.Save();" ^
     "  Write-Output 'OK'" ^
     "} catch { Write-Output 'FAIL' }"') do set SHORTCUT_RESULT=%%r
