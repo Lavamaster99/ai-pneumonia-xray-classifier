@@ -10,23 +10,42 @@ echo.
 echo   ######################################################
 echo   #                                                    #
 echo   #     CHEST X-RAY PNEUMONIA SCREENING TOOL            #
-echo   #     One-click setup for Windows                    #
+echo   #     One-click installer for Windows                #
 echo   #                                                    #
 echo   ######################################################
 echo.
-echo   This will check for Python, set up an isolated
-echo   environment, install everything needed, and launch
-echo   the dashboard in your browser. Nothing is installed
-echo   outside this project folder except Python itself
-echo   (if it isn't already on your system).
+echo   This installs the app to your PC ^(under your user
+echo   folder, nothing system-wide except Python itself if
+echo   it isn't already installed^), sets it up, and adds a
+echo   desktop shortcut. Once it's done, you can delete
+echo   whatever folder you downloaded/extracted this from --
+echo   the real install lives elsewhere from here on.
 echo.
 echo   ------------------------------------------------------
 echo.
 
+rem This file is an automation script, not the app itself -- it needs
+rem app.py, requirements.txt, the trained model, etc. sitting next to
+rem it in the same folder to actually have anything to install.
+rem Catching a standalone download of just the .bat file HERE, with a
+rem clear explanation, beats failing confusingly partway through.
+if not exist "%~dp0app.py" (
+    echo   This copy of setup_and_run.bat is on its own, without the
+    echo   rest of the project ^(app.py, requirements.txt, the trained
+    echo   model, etc.^) that it needs to actually install.
+    echo.
+    echo   Fix: download the full project zip ^(the one this file came
+    echo   in^), extract ALL of it, then run the setup_and_run.bat
+    echo   that's inside that extracted folder.
+    echo.
+    pause
+    exit /b 1
+)
+
 rem ---------------------------------------------------------------
-rem [1/4] Python
+rem [1/5] Python
 rem ---------------------------------------------------------------
-echo   [1/4] Checking for Python...
+echo   [1/5] Checking for Python...
 
 rem Windows ships a fake "python" App Execution Alias on PATH even
 rem when Python isn't installed -- it prints a Microsoft Store message
@@ -98,9 +117,41 @@ echo         Python found and working ^(using "%PYCMD%"^).
 echo.
 
 rem ---------------------------------------------------------------
-rem [2/4] Virtual environment
+rem [2/5] Copy the app to a permanent location
 rem ---------------------------------------------------------------
-echo   [2/4] Setting up an isolated environment...
+echo   [2/5] Installing to your PC...
+
+set "INSTALL_DIR=%LOCALAPPDATA%\PneumoniaScreeningTool"
+set "SOURCE_DIR=%~dp0"
+if "%SOURCE_DIR:~-1%"=="\" set "SOURCE_DIR=%SOURCE_DIR:~0,-1%"
+
+if /i "%SOURCE_DIR%"=="%INSTALL_DIR%" (
+    echo         Already running from the installed location.
+) else (
+    echo         Copying app files to:
+    echo             %INSTALL_DIR%
+    robocopy "%SOURCE_DIR%" "%INSTALL_DIR%" /E /XD venv data site .git .agents .claude __pycache__ /XF *.pyc >nul
+    if not exist "%INSTALL_DIR%\app.py" (
+        echo.
+        echo   Copying the app files failed. Nothing was installed.
+        echo   Try running this as Administrator, or check that
+        echo   %INSTALL_DIR% isn't blocked by another program.
+        echo.
+        pause
+        exit /b 1
+    )
+    echo         Done. Once setup finishes, it's safe to delete the
+    echo         folder you downloaded/extracted this from -- the
+    echo         real install now lives at the path above.
+)
+echo.
+
+cd /d "%INSTALL_DIR%"
+
+rem ---------------------------------------------------------------
+rem [3/5] Virtual environment
+rem ---------------------------------------------------------------
+echo   [3/5] Setting up an isolated environment...
 if not exist venv (
     echo         Creating venv\ ...
     %PYCMD% -m venv venv
@@ -110,9 +161,9 @@ if not exist venv (
 echo.
 
 rem ---------------------------------------------------------------
-rem [3/4] Dependencies
+rem [4/5] Dependencies
 rem ---------------------------------------------------------------
-echo   [3/4] Installing dependencies...
+echo   [4/5] Installing dependencies...
 echo         ^(first run only -- TensorFlow is a large download,
 echo          this can take several minutes^)
 echo.
@@ -140,9 +191,9 @@ if not exist "%USERPROFILE%\.streamlit\credentials.toml" (
 )
 
 rem ---------------------------------------------------------------
-rem [4/4] Desktop shortcut, so this full setup only ever runs once
+rem [5/5] Desktop shortcut, so this full setup only ever runs once
 rem ---------------------------------------------------------------
-echo   [4/4] Creating a desktop shortcut...
+echo   [5/5] Creating a desktop shortcut...
 
 set SHORTCUT_NAME=Pneumonia Screening Tool.lnk
 
@@ -154,8 +205,8 @@ rem rather than batch re-guessing where the file landed.
 for /f "delims=" %%r in ('powershell -NoProfile -Command ^
     "try {" ^
     "  $s = (New-Object -ComObject WScript.Shell).CreateShortcut([System.IO.Path]::Combine([Environment]::GetFolderPath('Desktop'), '%SHORTCUT_NAME%'));" ^
-    "  $s.TargetPath = (Join-Path '%~dp0' 'run.bat');" ^
-    "  $s.WorkingDirectory = '%~dp0';" ^
+    "  $s.TargetPath = (Join-Path '%INSTALL_DIR%' 'run.bat');" ^
+    "  $s.WorkingDirectory = '%INSTALL_DIR%';" ^
     "  $s.WindowStyle = 7;" ^
     "  $s.IconLocation = 'shell32.dll,167';" ^
     "  $s.Description = 'Chest X-Ray Pneumonia Screening Tool';" ^
@@ -167,17 +218,22 @@ if "%SHORTCUT_RESULT%"=="OK" (
     echo         Done -- look for "%SHORTCUT_NAME%" on your Desktop.
 ) else (
     echo         Couldn't create it automatically, but that's fine --
-    echo         run.bat in this folder does the same thing.
+    echo         run.bat at %INSTALL_DIR% does the same thing.
 )
 echo.
 
 echo   ------------------------------------------------------
-echo    Setup is done and only needs to happen once.
-echo    From now on, use the Desktop shortcut to open the app
-echo    directly -- no need to run this setup file again.
+echo    Installed to: %INSTALL_DIR%
+echo    Setup only needs to happen once. From now on, use the
+echo    Desktop shortcut -- and you can delete the folder you
+echo    downloaded this from, if you haven't already.
 echo   ------------------------------------------------------
 echo.
 echo   Opening it now for the first time...
 echo.
 
-call "%~dp0run.bat"
+rem "start" here (not "call") launches run.bat as its own independent
+rem process rather than continuing inline in this one -- more robust
+rem regardless of how THIS window itself was opened, and it means this
+rem installer window doesn't have to stay alive for the app to run.
+start "" /d "%INSTALL_DIR%" run.bat
