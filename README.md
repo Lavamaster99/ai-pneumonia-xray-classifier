@@ -8,6 +8,58 @@ Built as a self-directed biomedical engineering project: dataset → model →
 evaluation → deployable interface, the full pipeline of an applied
 computational medicine tool, not just a training script.
 
+**⚠️ Not a medical device.** This is a student engineering/research
+project. It must never be used to make a real medical decision — see
+[Limitations / ethical disclosure](#limitations--ethical-disclosure).
+
+## Download & use it (no coding experience required)
+
+The trained model is already included in this repo, so you do **not** need
+to train anything or wait for anything — just download, install three
+things, and run one command.
+
+**1. Get the code onto your computer.** Either:
+- Click the green **`<> Code`** button at the top of this page → **Download
+  ZIP** → unzip it anywhere, *or*
+- If you use git: `git clone https://github.com/Lavamaster99/ai-pneumonia-xray-classifier.git`
+
+**2. Install Python**, if you don't already have it: download from
+[python.org/downloads](https://www.python.org/downloads/) (any version 3.10
+or newer). On the Windows installer, tick **"Add python.exe to PATH"**
+before clicking Install.
+
+**3. Open a terminal in the project folder** (Windows: open the unzipped
+folder, click the address bar, type `cmd`, press Enter) and run:
+
+```bash
+python -m venv venv
+
+venv\Scripts\activate          # Windows
+source venv/bin/activate       # macOS / Linux
+
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+The first `pip install` takes a few minutes (TensorFlow is a large
+download). Once it finishes, Streamlit will automatically open
+`http://localhost:8501` in your browser — if it doesn't, open that address
+yourself.
+
+**4. Use it.** Click **Browse files**, and either upload your own chest
+X-ray image or use one of the real test images already included in
+`examples/` (`sample_pneumonia.png` and `sample_normal.png`) to see it work
+immediately. You'll get a prediction, a confidence score, and a Grad-CAM
+heatmap showing what the model looked at.
+
+**Stuck?** Common issues:
+- *"python is not recognized"* (Windows) — Python wasn't added to PATH
+  during install; reinstall and tick that box, or use `py` instead of
+  `python` in the commands above.
+- *Port 8501 already in use* — another Streamlit app is already running;
+  either close it or run `streamlit run app.py --server.port 8502`.
+- *Install is slow* — normal on the first run; TensorFlow alone is ~500MB.
+
 ## What it does
 
 1. **CNN classifier.** An 8-conv-layer network (with batch norm, dropout, and
@@ -62,21 +114,24 @@ train_model.py    # builds, trains, and evaluates the CNN; writes model + report
 gradcam.py        # Grad-CAM heatmap implementation (framework-agnostic logic)
 app.py            # Streamlit dashboard: upload -> prediction -> heatmap
 requirements.txt
-model/            # saved trained model (generated)
-reports/          # metrics.json + PNG plots (generated)
-data/             # cached dataset download (generated)
+model/            # saved trained model -- already committed, no training needed to use the app
+reports/          # metrics.json + PNG plots -- already committed
+data/             # cached dataset download (only appears if you retrain)
 ```
 
-## Running it
+## Retraining from scratch (optional)
+
+The steps in **Download & use it** above are all you need to run the app.
+Retraining is only necessary if you change the model architecture or want
+to reproduce the training run yourself:
 
 ```bash
-python -m venv venv
-venv\Scripts\activate          # Windows
-pip install -r requirements.txt
-
-python train_model.py          # trains the model, ~10-20 min on a laptop CPU
-streamlit run app.py           # launches the dashboard at localhost:8501
+python train_model.py          # ~10-20 min on a laptop CPU, downloads PneumoniaMNIST automatically
 ```
+
+This overwrites `model/pneumonia_cnn.keras` and `reports/metrics.json` with
+a fresh run -- results will vary slightly from the Results numbers above
+since training isn't perfectly deterministic.
 
 ## Design decisions worth noting (for write-ups / interviews)
 
