@@ -110,8 +110,12 @@ st.html(
          reachable, just restyled to sit quietly in the corner. */
       footer, [data-testid="stAppDeployButton"] { visibility: hidden; height: 0; }
       header[data-testid="stHeader"] { background: transparent; }
-      [data-testid="stMainMenuButton"] { opacity: .55; }
-      [data-testid="stMainMenuButton"]:hover { opacity: 1; }
+      [data-testid="stMainMenuButton"] {
+        background: var(--panel) !important; border: 1px solid var(--line) !important;
+        border-radius: 999px !important; box-shadow: var(--shadow) !important;
+      }
+      [data-testid="stMainMenuButton"] svg { color: var(--ink-soft) !important; }
+      [data-testid="stMainMenuButton"]:hover { border-color: var(--accent) !important; }
       .block-container { padding-top: 1.6rem; max-width: 1180px; }
 
       /* ---- Native-widget text lock ----
