@@ -20,7 +20,7 @@ IMG_SIZE = 128
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "model", "pneumonia_cnn.keras")
 METRICS_PATH = os.path.join(os.path.dirname(__file__), "reports", "metrics.json")
 
-st.set_page_config(page_title="Chest X-Ray Pneumonia Screener", page_icon="🫁", layout="wide")
+st.set_page_config(page_title="Chest X-Ray Pneumonia Screener", page_icon=":material/monitor_heart:", layout="wide")
 
 # ---------------------------------------------------------------------------
 # Icons -- simple stroke-based line icons (hand-drawn, 24x24), not emoji.
@@ -105,9 +105,36 @@ st.html(
       html, body, [class*="css"], .stApp { font-family: 'Manrope', -apple-system, sans-serif !important; }
       .stApp { background: var(--bg); }
 
-      /* Hide default Streamlit chrome for a cleaner, product-like frame */
-      #MainMenu, footer, header[data-testid="stHeader"] { visibility: hidden; height: 0; }
+      /* Trim default Streamlit chrome for a cleaner, product-like frame --
+         but keep the menu (theme picker: System/Light/Dark, wide mode, etc.)
+         reachable, just restyled to sit quietly in the corner. */
+      footer, [data-testid="stAppDeployButton"] { visibility: hidden; height: 0; }
+      header[data-testid="stHeader"] { background: transparent; }
+      [data-testid="stMainMenuButton"] { opacity: .55; }
+      [data-testid="stMainMenuButton"]:hover { opacity: 1; }
       .block-container { padding-top: 1.6rem; max-width: 1180px; }
+
+      /* ---- Native-widget text lock ----
+         Streamlit's own theme (System/Light/Dark, user-selectable from the
+         menu above) recolors its native text to match whichever mode is
+         active -- but every custom surface on this page (.stApp, sidebar,
+         cards) is deliberately pinned to a light palette regardless of that
+         choice. Left alone, picking "Dark" (or a dark OS/browser default
+         under "System") renders native text near-white on our light
+         backgrounds and it disappears. Pinning it here keeps every native
+         element readable no matter what a visitor's theme setting is. */
+      [data-testid="stMarkdownContainer"], [data-testid="stMarkdownContainer"] p,
+      [data-testid="stMarkdownContainer"] li, [data-testid="stMarkdownContainer"] span,
+      [data-testid="stAlert"], [data-testid="stAlert"] p, [data-testid="stAlert"] span,
+      [data-testid="stFileUploaderDropzoneInstructions"] span,
+      [data-testid="stExpander"] summary, [data-testid="stExpander"] summary span,
+      [data-testid="stExpander"] p, [data-testid="stWidgetLabel"] p {
+        color: var(--ink) !important;
+      }
+      [data-testid="stMarkdownContainer"] a { color: var(--accent-ink) !important; }
+      [data-testid="stExpander"] [data-testid="stIconMaterial"] { color: var(--ink-soft) !important; }
+      .react-json-view { background: var(--panel) !important; }
+      .react-json-view, .react-json-view span { color: var(--ink) !important; }
 
       h1, h2, h3 { color: var(--ink) !important; font-weight: 700 !important; letter-spacing: -0.01em; }
 
