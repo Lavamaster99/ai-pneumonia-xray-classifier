@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🫁 Chest X-Ray Pneumonia Screening Tool
+# Chest X-Ray Pneumonia Screening Tool
 
 **A CNN that reads chest X-rays, explains itself with Grad-CAM, and ships as a working dashboard — not just a training script.**
 
@@ -8,7 +8,7 @@
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.x-FF6F00?logo=tensorflow&logoColor=white)](https://www.tensorflow.org/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-3DA639)](LICENSE)
-[![Not a medical device](https://img.shields.io/badge/⚠️-not_a_medical_device-B3453A)](#-limitations--ethical-disclosure)
+[![Not a medical device](https://img.shields.io/badge/not_a_medical_device-B3453A)](#limitations--ethical-disclosure)
 
 </div>
 
@@ -25,16 +25,16 @@
 
 ## Table of contents
 
-- [Quick start](#-quick-start)
-- [What it does](#-what-it-does)
-- [Results](#-results)
-- [Dataset](#-dataset)
-- [Project structure](#-project-structure)
-- [Design decisions](#-design-decisions-worth-noting)
-- [Limitations / ethical disclosure](#-limitations--ethical-disclosure)
-- [Attribution](#-attribution)
+- [Quick start](#quick-start)
+- [What it does](#what-it-does)
+- [Results](#results)
+- [Dataset](#dataset)
+- [Project structure](#project-structure)
+- [Design decisions](#design-decisions-worth-noting)
+- [Limitations / ethical disclosure](#limitations--ethical-disclosure)
+- [Attribution](#attribution)
 
-## 🚀 Quick start
+## Quick start
 
 The trained model ships in this repo — no training, no waiting, just run it.
 
@@ -73,7 +73,7 @@ Once it's running, click **Browse files** and try `examples/sample_pneumonia.png
 
 </details>
 
-## 🔬 What it does
+## What it does
 
 | | |
 |---|---|
@@ -81,7 +81,7 @@ Once it's running, click **Browse files** and try `examples/sample_pneumonia.png
 | **Grad-CAM heatmaps** | Every prediction shows *which pixels* the network actually attended to ([Selvaraju et al., 2017](https://arxiv.org/abs/1610.02391)) — the difference between a bare number and an inspectable result. |
 | **Web dashboard** | Upload an image in `app.py` and see the prediction, confidence, heatmap, and the model's own validated stats side by side. |
 
-## 📊 Results
+## Results
 
 Test set, 624 held-out images (`reports/metrics.json`):
 
@@ -105,13 +105,13 @@ The false-negative rate is reported on its own, separately from accuracy, becaus
 
 **A real bug caught during verification, not hidden:** the first Grad-CAM pass returned nearly blank heatmaps on confident predictions. Root cause — gradients were computed against the post-sigmoid probability, which saturates near 0/1 and kills the gradient for exactly the most confident cases, compounded by a normalization epsilon larger than the signal itself. Fixed by differentiating against the recovered pre-sigmoid logit and switching to `divide_no_nan`. See `gradcam.py` for the fix, with the reasoning left in as a comment.
 
-## 🗂 Dataset
+## Dataset
 
 [PneumoniaMNIST](https://medmnist.com/) (MedMNIST v2 benchmark), sourced from Kermany et al.'s pediatric chest X-ray collection (Guangzhou Women and Children's Medical Center). **5,856 images, CC BY 4.0**, downloads automatically — no Kaggle account or manual wrangling.
 
 Split: 4,708 train / 524 validation / 624 test. Class-imbalanced (~3:1 pneumonia:normal), handled with class weighting rather than duplicating images.
 
-## 📁 Project structure
+## Project structure
 
 ```
 setup_and_run.bat  # first-time Windows setup: installs everything, creates a desktop shortcut
@@ -139,18 +139,18 @@ Overwrites `model/pneumonia_cnn.keras` and `reports/metrics.json`. Results will 
 
 </details>
 
-## 💡 Design decisions worth noting
+## Design decisions worth noting
 
 - **128×128 resolution**, not the raw 28×28 MedMNIST default: large enough for the Grad-CAM overlay to be visually meaningful on real anatomy, small enough to train in minutes on a CPU.
 - **Class weighting over oversampling**: avoids duplicating minority-class images, which would inflate apparent performance without adding information.
 - **Global average pooling instead of a large Dense head**: keeps the parameter count low (~300K) to reduce overfitting on ~4.7K training images, and keeps the final conv feature maps spatial — required for Grad-CAM to localize anything.
 - **Explicit false-negative rate reporting**: a missed-pneumonia case has a much higher real-world cost than a false alarm — the kind of metric choice clinical ML systems are actually evaluated on.
 
-## ⚠️ Limitations / ethical disclosure
+## Limitations / ethical disclosure
 
 This is an educational/portfolio project, **not a validated clinical tool**. PneumoniaMNIST is a pediatric-only, single-institution, single-imaging-protocol dataset; a model trained on it will not generalize reliably to adult patients, different X-ray machines, or different patient populations without further validation. The app itself includes an explicit "not a medical device" warning for this reason — no output from this tool should ever inform a real medical decision.
 
-## 📚 Attribution
+## Attribution
 
 - **Dataset:** Yang et al., *MedMNIST v2* (2023); original imagery from Kermany et al., *Cell* (2018), Guangzhou Women and Children's Medical Center. CC BY 4.0.
 - **Method:** Selvaraju et al., *Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization*, ICCV 2017.
