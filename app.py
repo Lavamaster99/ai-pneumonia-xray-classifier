@@ -11,6 +11,7 @@ import os
 
 import numpy as np
 import streamlit as st
+import streamlit.components.v1 as components
 import tensorflow as tf
 from PIL import Image
 
@@ -39,21 +40,29 @@ _ICONS = {
 }
 
 
-def icon(name: str, size: int = 18, color: str = "#5B6472", stroke: float = 2) -> str:
+def icon(name: str, size: int = 18, color: str = "var(--ink-soft)", stroke: float = 2) -> str:
     # Streamlit's HTML sanitizer strips raw inline <svg> elements (a
     # deliberate security measure -- SVG can carry scripts/foreignObject
-    # content). Base64-encoding it into an <img src="data:..."> sidesteps
-    # that entirely, since it's just an opaque image reference at that
-    # point, not embedded markup. The tradeoff: no more `currentColor` --
-    # each call site has to pass its actual intended color explicitly,
-    # since a data-URI image can't inherit CSS `color` from its context.
+    # content). Base64-encoding the shape into a CSS mask-image sidesteps
+    # that -- it's an opaque image reference, not embedded markup -- while
+    # still letting `color` be a `var(--token)` that resolves live from the
+    # page's CSS. That's what makes icons repaint instantly when the
+    # light/dark theme flips, unlike baking a literal color into the SVG
+    # (an <img src="data:..."> can't inherit CSS color at all).
     svg = (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" '
-        f'viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="{stroke}" '
-        f'stroke-linecap="round" stroke-linejoin="round">{_ICONS[name]}</svg>'
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" '
+        f'stroke="black" stroke-width="{stroke}" stroke-linecap="round" '
+        f'stroke-linejoin="round">{_ICONS[name]}</svg>'
     )
     b64 = base64.b64encode(svg.encode()).decode()
-    return f'<img src="data:image/svg+xml;base64,{b64}" width="{size}" height="{size}" style="display:inline-block;vertical-align:middle">'
+    mask = f"url(data:image/svg+xml;base64,{b64})"
+    style = (
+        f"display:inline-block;vertical-align:middle;width:{size}px;height:{size}px;"
+        f"background-color:{color};-webkit-mask-image:{mask};mask-image:{mask};"
+        f"-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;"
+        f"mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;"
+    )
+    return f'<span style="{style}"></span>'
 
 
 @st.cache_resource
@@ -95,11 +104,35 @@ st.html(
         --good-soft: #E3F5EC;
         --bad: #D6455A;
         --bad-soft: #FBE7EA;
+        --bad-line: #F3C6CD;
         --line: #E6E8EC;
         --panel: #FFFFFF;
         --bg: #FAFAFB;
         --shadow: 0 1px 2px rgba(15,20,30,.04), 0 10px 28px -16px rgba(15,20,30,.14);
         --radius: 16px;
+      }
+
+      /* Dark palette -- swapped in by the JS theme bridge below whenever
+         Streamlit's own picker (System/Light/Dark, top-right menu) resolves
+         to dark. Every custom surface on this page reads colors only
+         through these tokens, so this one block is what makes "Dark"
+         actually invert the page instead of leaving it untouched. */
+      html[data-theme="dark"] {
+        --ink: #F3F5F8;
+        --ink-soft: #ACB3C0;
+        --ink-faint: #6E7683;
+        --accent: #8B98F5;
+        --accent-ink: #C7CDF7;
+        --accent-soft: #232A52;
+        --good: #3ED694;
+        --good-soft: #123324;
+        --bad: #FF6B81;
+        --bad-soft: #3A1620;
+        --bad-line: #5A2530;
+        --line: #2B303C;
+        --panel: #181B23;
+        --bg: #0E1117;
+        --shadow: 0 1px 2px rgba(0,0,0,.5), 0 10px 28px -16px rgba(0,0,0,.6);
       }
 
       html, body, [class*="css"], .stApp { font-family: 'Manrope', -apple-system, sans-serif !important; }
@@ -139,6 +172,14 @@ st.html(
       [data-testid="stExpander"] [data-testid="stIconMaterial"] { color: var(--ink-soft) !important; }
       .react-json-view { background: var(--panel) !important; }
       .react-json-view, .react-json-view span { color: var(--ink) !important; }
+      /* The file-uploader's "Browse" button carries its own fixed dark
+         chip styling, independent of our tokens -- forcing --ink onto its
+         label (as the broad rule above does) fights that own pairing and
+         renders dark-on-dark. Let text inside any native button keep the
+         button's own color instead. */
+      button [data-testid="stMarkdownContainer"], button [data-testid="stMarkdownContainer"] p {
+        color: inherit !important;
+      }
 
       h1, h2, h3 { color: var(--ink) !important; font-weight: 700 !important; letter-spacing: -0.01em; }
 
@@ -146,7 +187,7 @@ st.html(
       .app-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 6px; flex-wrap: wrap; }
       .app-header .id { display: flex; align-items: center; gap: 12px; }
       .app-header .mark {
-        width: 42px; height: 42px; border-radius: 12px; background: var(--ink); color: #fff;
+        width: 42px; height: 42px; border-radius: 12px; background: #151A21; color: #fff;
         display: flex; align-items: center; justify-content: center; flex-shrink: 0;
       }
       .app-header .name { font-weight: 800; font-size: 17px; color: var(--ink); letter-spacing: -0.01em; }
@@ -161,7 +202,7 @@ st.html(
       /* ---- Warning banner ---- */
       .banner-warn {
         display: flex; gap: 12px; align-items: flex-start; padding: 14px 18px; border-radius: var(--radius);
-        background: var(--bad-soft); border: 1px solid #F3C6CD; margin-bottom: 26px;
+        background: var(--bad-soft); border: 1px solid var(--bad-line); margin-bottom: 26px;
       }
       .banner-warn .ic { color: var(--bad); flex-shrink: 0; margin-top: 1px; }
       .banner-warn b { color: var(--ink); } .banner-warn { color: var(--ink-soft); font-size: 13.5px; line-height: 1.55; }
@@ -170,7 +211,6 @@ st.html(
       [data-testid="stSidebar"] { background: var(--panel); border-right: 1px solid var(--line); }
       [data-testid="stSidebar"] .block-container { padding-top: 2rem; }
       .sb-title { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 13.5px; color: var(--ink); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
-      .sb-title svg { color: var(--accent); }
       .sb-sub { font-size: 12px; color: var(--ink-faint); margin-bottom: 18px; }
 
       .mcard { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-radius: 13px; border: 1px solid var(--line); background: var(--bg); margin-bottom: 10px; }
@@ -183,7 +223,7 @@ st.html(
 
       /* ---- File uploader ---- */
       [data-testid="stFileUploaderDropzone"] {
-        background: var(--panel) !important; border: 1.5px dashed var(--line-strong, #D3D8E0) !important;
+        background: var(--panel) !important; border: 1.5px dashed var(--line) !important;
         border-radius: var(--radius) !important;
       }
       [data-testid="stFileUploaderDropzone"]:hover { border-color: var(--accent) !important; }
@@ -213,9 +253,39 @@ st.html(
 
       .img-card { border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--panel); }
       .img-card .cap { padding: 10px 14px; font-size: 12.5px; font-weight: 700; color: var(--ink-soft); border-top: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
-      .img-card .cap svg { color: var(--accent); }
     </style>
     """
+)
+
+# st.html() sanitizes out <script> tags, so the theme bridge below runs
+# through components.html() instead -- it renders in a real (same-origin)
+# iframe where script execution isn't stripped, reaching back into the
+# parent page via window.parent to flip <html data-theme="...">.
+components.html(
+    """
+    <script>
+      (function () {
+        var doc = window.parent.document;
+        function effectiveTheme() {
+          var stored = null;
+          try { stored = JSON.parse(localStorage.getItem("stActiveTheme-/-v2") || "null"); } catch (e) {}
+          if (stored === "Dark") return "dark";
+          if (stored === "Light") return "light";
+          return window.parent.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        function apply() {
+          var t = effectiveTheme();
+          if (doc.documentElement.getAttribute("data-theme") !== t) {
+            doc.documentElement.setAttribute("data-theme", t);
+          }
+        }
+        apply();
+        setInterval(apply, 400);
+        window.parent.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", apply);
+      })();
+    </script>
+    """,
+    height=0,
 )
 
 st.html(
@@ -229,7 +299,7 @@ st.html(
         </div>
       </div>
       <a class="gh-link" href="https://github.com/Lavamaster99/ai-pneumonia-xray-classifier" target="_blank">
-        {icon('github', 16, '#5B6472')} View source
+        {icon('github', 16, 'var(--ink-soft)')} View source
       </a>
     </div>
     <p class="lede">
@@ -237,7 +307,7 @@ st.html(
       Kermany et al. / MedMNIST v2) with Grad-CAM explainability, so every prediction shows its work.
     </p>
     <div class="banner-warn">
-      <span class="ic">{icon('alert', 18, '#D6455A')}</span>
+      <span class="ic">{icon('alert', 18, 'var(--bad)')}</span>
       <span><b>Not a medical device.</b> This is a student research/engineering demonstration, not a
       clinically validated diagnostic tool. Do not use it to make real medical decisions.</span>
     </div>
@@ -257,7 +327,7 @@ last_conv = find_last_conv_layer(model)
 
 with st.sidebar:
     st.html(
-        f"""<div class="sb-title">{icon('activity', 15, '#3B4CC0')}Model performance</div>
+        f"""<div class="sb-title">{icon('activity', 15, 'var(--accent)')}Model performance</div>
         <div class="sb-sub">Measured on held-out test data, not estimated.</div>"""
     )
     if metrics:
@@ -269,7 +339,7 @@ with st.sidebar:
         ]
         for ic, val, lbl in rows:
             st.html(
-                f"""<div class="mcard"><div class="ic">{icon(ic, 16, '#29358A')}</div>
+                f"""<div class="mcard"><div class="ic">{icon(ic, 16, 'var(--accent-ink)')}</div>
                 <div><div class="val">{val}</div><div class="lbl">{lbl}</div></div></div>"""
             )
         st.html(
@@ -282,7 +352,7 @@ with st.sidebar:
 
     st.divider()
     st.html(
-        f"""<div class="sb-title">{icon('flask', 15, '#3B4CC0')}How it works</div>"""
+        f"""<div class="sb-title">{icon('flask', 15, 'var(--accent)')}How it works</div>"""
     )
     st.html(
         """<div class="sb-steps">
@@ -311,18 +381,18 @@ if uploaded is not None:
     with col1:
         st.image(pil_img, use_container_width=True)
         st.html(
-            f'<div class="img-card"><div class="cap">{icon("upload", 14, "#3B4CC0")}Uploaded X-ray</div></div>'
+            f'<div class="img-card"><div class="cap">{icon("upload", 14, "var(--accent)")}Uploaded X-ray</div></div>'
         )
     with col2:
         st.image(overlay, channels="BGR", use_container_width=True)
         st.html(
-            f'<div class="img-card"><div class="cap">{icon("target", 14, "#3B4CC0")}Grad-CAM &mdash; what the model looked at</div></div>'
+            f'<div class="img-card"><div class="cap">{icon("target", 14, "var(--accent)")}Grad-CAM &mdash; what the model looked at</div></div>'
         )
 
     verdict_class = "pos" if is_pos else "neg"
     chip_class = "pos" if is_pos else "neg"
     verdict_icon = "alert" if is_pos else "check"
-    verdict_color = "#D6455A" if is_pos else "#1B8F5D"
+    verdict_color = "var(--bad)" if is_pos else "var(--good)"
 
     st.html(
         f"""
