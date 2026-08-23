@@ -38,12 +38,12 @@
 
 The trained model ships in this repo — no training, no waiting, just run it.
 
-### Windows: one click
+### Windows: one-click install
 
-1. Grab **[`setup_and_run.bat`](../../releases/latest)** from the latest release (or use the copy in this repo).
-2. Double-click it — **just this once.**
+1. Download **[`AI-Pneumonia-Screening-Tool.zip`](../../releases/latest)** from the latest release — this is the whole app, everything's inside.
+2. Extract it, then double-click **`setup_and_run.bat`** inside — **just this once.**
 
-It checks for Python (installing it via `winget` if missing), creates an isolated environment, installs everything, opens the app in its own window (not a browser tab), and adds a **desktop shortcut**. Every time after that, just use the shortcut — no terminal, no re-running setup, no browser address bar. It opens like any other installed app.
+It checks for Python (installing it via `winget` if missing), installs the app to your PC, opens it in its own window (not a browser tab), and adds a **desktop shortcut**. Once it's done, delete the extracted folder — the real install lives elsewhere from here on. Every time after that, just use the Desktop shortcut: no terminal, no re-running setup, no browser address bar. It opens like any other installed app.
 
 ### Any OS: five commands
 
