@@ -29,13 +29,28 @@ rem ---------------------------------------------------------------
 echo   [1/4] Checking for Python...
 
 rem Windows ships a fake "python" App Execution Alias on PATH even
-rem when Python isn't installed -- it prints a Microsoft Store
-rem message instead of a version number, so checking that "python"
-rem merely exists on PATH gives a false positive. Checking the
-rem actual version output is the real test.
+rem when Python isn't installed -- it prints a Microsoft Store message
+rem instead of a version number, so checking that "python" merely
+rem exists on PATH gives a false positive. Checking the actual version
+rem output is the real test.
+rem
+rem The "py" launcher (installed alongside every official/winget Python)
+rem is checked FIRST because it is immune to this problem -- it lives in
+rem C:\Windows\ and is never shadowed by the App Execution Alias, unlike
+rem the bare "python"/"python3" commands. This matters because a
+rem previously-installed Python can still be invisible to "python" if
+rem the Store alias happens to sit earlier on PATH -- "py" sidesteps
+rem that entirely.
 set PYTHON_OK=0
-for /f "delims=" %%v in ('python --version 2^>^&1') do (
-    echo %%v | findstr /b /c:"Python 3" >nul && set PYTHON_OK=1
+set PYCMD=
+
+for /f "delims=" %%v in ('py -3 --version 2^>^&1') do (
+    echo %%v | findstr /b /c:"Python 3" >nul && (set PYTHON_OK=1& set "PYCMD=py -3")
+)
+if "%PYTHON_OK%"=="0" (
+    for /f "delims=" %%v in ('python --version 2^>^&1') do (
+        echo %%v | findstr /b /c:"Python 3" >nul && (set PYTHON_OK=1& set "PYCMD=python")
+    )
 )
 
 if "%PYTHON_OK%"=="0" (
@@ -67,14 +82,19 @@ if "%PYTHON_OK%"=="0" (
     echo.
     echo   ------------------------------------------------------
     echo   Python is installed. Please CLOSE this window and
-    echo   double-click setup_and_run.bat again -- this refreshes
-    echo   your PATH so Windows can find the new install.
+    echo   double-click setup_and_run.bat again.
+    echo.
+    echo   If it still says "not found" after that: Windows has a
+    echo   built-in "python" shortcut that can hide a real install.
+    echo   Go to Settings, search "App execution aliases", and turn
+    echo   OFF the switches next to python.exe / python3.exe, then
+    echo   run this file once more.
     echo   ------------------------------------------------------
     echo.
     pause
     exit /b 0
 )
-echo         Python found and working.
+echo         Python found and working ^(using "%PYCMD%"^).
 echo.
 
 rem ---------------------------------------------------------------
@@ -83,7 +103,7 @@ rem ---------------------------------------------------------------
 echo   [2/4] Setting up an isolated environment...
 if not exist venv (
     echo         Creating venv\ ...
-    python -m venv venv
+    %PYCMD% -m venv venv
 ) else (
     echo         Already exists, reusing it.
 )
