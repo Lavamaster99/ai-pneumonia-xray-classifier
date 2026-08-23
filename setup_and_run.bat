@@ -140,15 +140,44 @@ if not exist "%USERPROFILE%\.streamlit\credentials.toml" (
 )
 
 rem ---------------------------------------------------------------
-rem [4/4] Launch
+rem [4/4] Desktop shortcut, so this full setup only ever runs once
 rem ---------------------------------------------------------------
-echo   [4/4] Launching the dashboard...
-echo.
-echo   ------------------------------------------------------
-echo    Setup complete. Opening in your browser now.
-echo    To stop the app later, just close this window.
-echo   ------------------------------------------------------
-echo.
-streamlit run app.py
+echo   [4/4] Creating a desktop shortcut...
 
-pause
+set SHORTCUT_NAME=Pneumonia Screening Tool.lnk
+
+rem Desktop is a "Known Folder" that can be redirected (e.g. into
+rem OneDrive) -- %USERPROFILE%\Desktop in plain batch doesn't know
+rem about that redirection, but PowerShell's GetFolderPath does, so
+rem PowerShell resolves the real path AND reports success itself
+rem rather than batch re-guessing where the file landed.
+for /f "delims=" %%r in ('powershell -NoProfile -Command ^
+    "try {" ^
+    "  $s = (New-Object -ComObject WScript.Shell).CreateShortcut([System.IO.Path]::Combine([Environment]::GetFolderPath('Desktop'), '%SHORTCUT_NAME%'));" ^
+    "  $s.TargetPath = (Join-Path '%~dp0' 'run.bat');" ^
+    "  $s.WorkingDirectory = '%~dp0';" ^
+    "  $s.WindowStyle = 7;" ^
+    "  $s.IconLocation = 'shell32.dll,167';" ^
+    "  $s.Description = 'Chest X-Ray Pneumonia Screening Tool';" ^
+    "  $s.Save();" ^
+    "  Write-Output 'OK'" ^
+    "} catch { Write-Output 'FAIL' }"') do set SHORTCUT_RESULT=%%r
+
+if "%SHORTCUT_RESULT%"=="OK" (
+    echo         Done -- look for "%SHORTCUT_NAME%" on your Desktop.
+) else (
+    echo         Couldn't create it automatically, but that's fine --
+    echo         run.bat in this folder does the same thing.
+)
+echo.
+
+echo   ------------------------------------------------------
+echo    Setup is done and only needs to happen once.
+echo    From now on, use the Desktop shortcut to open the app
+echo    directly -- no need to run this setup file again.
+echo   ------------------------------------------------------
+echo.
+echo   Opening it now for the first time...
+echo.
+
+call "%~dp0run.bat"

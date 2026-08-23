@@ -41,9 +41,9 @@ The trained model ships in this repo — no training, no waiting, just run it.
 ### Windows: one click
 
 1. Grab **[`setup_and_run.bat`](../../releases/latest)** from the latest release (or use the copy in this repo).
-2. Double-click it.
+2. Double-click it — **just this once.**
 
-That's it — it checks for Python (installing it via `winget` if missing), creates an isolated environment, installs everything, and opens the dashboard in your browser.
+It checks for Python (installing it via `winget` if missing), creates an isolated environment, installs everything, opens the app in its own window (not a browser tab), and adds a **desktop shortcut**. Every time after that, just use the shortcut — no terminal, no re-running setup, no browser address bar. It opens like any other installed app.
 
 ### Any OS: five commands
 
@@ -114,7 +114,8 @@ Split: 4,708 train / 524 validation / 624 test. Class-imbalanced (~3:1 pneumonia
 ## 📁 Project structure
 
 ```
-setup_and_run.bat  # one-click Windows setup + launch
+setup_and_run.bat  # first-time Windows setup: installs everything, creates a desktop shortcut
+run.bat            # lightweight launcher used by that shortcut for every run after the first
 train_model.py     # builds, trains, and evaluates the CNN; writes model + reports
 gradcam.py         # Grad-CAM heatmap implementation
 app.py             # Streamlit dashboard: upload -> prediction -> heatmap
