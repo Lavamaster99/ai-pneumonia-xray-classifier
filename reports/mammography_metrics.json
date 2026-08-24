@@ -1,0 +1,25 @@
+{
+  "dataset": "MIAS database v1.21, whole-image sliding-window evaluation, 5-fold cross-validated, 316 of 322 images used",
+  "test_set_size": 316,
+  "positive_class": "malignant",
+  "decision_threshold": 0.8816353678703308,
+  "cross_validation_folds": 5,
+  "accuracy": 0.16453373015873013,
+  "accuracy_std": 0.007160059752288149,
+  "precision": 0.1542905827940201,
+  "precision_std": 0.006592679216925732,
+  "recall_sensitivity": 0.9800000000000001,
+  "recall_sensitivity_std": 0.039999999999999994,
+  "auc": 0.4892445065610683,
+  "auc_std": 0.05716788743857545,
+  "false_negative_rate": 0.02,
+  "false_negative_rate_std": 0.04,
+  "false_positive_rate": 0.9850454227812719,
+  "false_positive_rate_std": 0.007478921169504348,
+  "confusion_matrix": {
+    "tn": 52,
+    "fp": 215,
+    "fn": 12,
+    "tp": 37
+  }
+}

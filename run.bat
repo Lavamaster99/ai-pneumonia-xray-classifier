@@ -9,15 +9,8 @@ if not exist venv (
     echo   No environment found in this folder:
     echo       %~dp0
     echo.
-    echo   If you've already run setup_and_run.bat, it was probably
-    echo   run from a DIFFERENT folder than this shortcut points to
-    echo   ^(for example, the project was moved or re-downloaded after
-    echo   the shortcut was created^). Right-click the desktop
-    echo   shortcut -^> Properties -^> check "Start in" matches the
-    echo   folder that actually has setup_and_run.bat, app.py, etc.
-    echo.
-    echo   Otherwise: run setup_and_run.bat from this exact folder
-    echo   first ^(just once^), then use this shortcut from now on.
+    echo   Run setup_and_run.bat from this exact folder first ^(just
+    echo   once^), then use run.bat from here every time after that.
     echo.
     pause
     exit /b 1

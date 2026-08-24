@@ -1,5 +1,5 @@
 #!/bin/bash
-# Lightweight launcher used by the shortcut setup_and_run.sh creates.
+# Lightweight launcher for every run after the first setup_and_run.sh.
 # Starts the Streamlit server if it isn't already running, waits for it
 # to come up, then opens the dashboard in its own window.
 

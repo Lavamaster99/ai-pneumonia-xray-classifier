@@ -19,6 +19,7 @@ import tensorflow as tf
 from PIL import Image
 
 from gradcam import make_gradcam_heatmap, overlay_heatmap, find_last_conv_layer
+from mammo_window import sliding_window_predict
 
 IMG_SIZE = 128
 BASE_DIR = os.path.dirname(__file__)
@@ -75,6 +76,49 @@ MODES = {
             "Don't have one handy? `examples/sample_benign.png` and "
             "`examples/sample_malignant.png` in this repo work, or any "
             "BreastMNIST sample from [medmnist.com](https://medmnist.com/)."
+        ),
+    },
+    "mammography": {
+        "nav_label": "Mammogram — Malignancy",
+        "model_path": os.path.join(BASE_DIR, "model", "mammography_cnn.keras"),
+        "metrics_path": os.path.join(BASE_DIR, "reports", "mammography_metrics.json"),
+        "train_script": "train_mammography_model.py",
+        "lede": (
+            "A convolutional neural network trained on lesion-centered crops from "
+            "the MIAS database (digitized screening mammograms, Suckling et al. "
+            "1994), transfer-learned from ImageNet since MIAS has only 322 images. "
+            "A full mammogram is scanned in overlapping windows at several scales, "
+            "and the window it's most concerned about is shown below with Grad-CAM "
+            "— but see the notice under the result: 5-fold cross-validation showed "
+            "this doesn't clear the bar for an actual prediction."
+        ),
+        "upload_label": "Upload a mammogram image",
+        "upload_help": "JPG or PNG. examples/sample_mammo_normal.png and examples/sample_mammo_malignant.png in this repo work for a quick try.",
+        "positive_label": "Malignant",
+        "negative_label": "Normal / Benign",
+        "uploaded_caption": "Region the scan focused on",
+        "how_it_works": [
+            "Upload a mammogram image",
+            "The image is scanned in overlapping windows at several scales",
+            "Grad-CAM shows what the most suspicious window looked at",
+            "No malignancy verdict is shown — see why below",
+        ],
+        "no_sample_text": (
+            "Don't have one handy? `examples/sample_mammo_normal.png` and "
+            "`examples/sample_mammo_malignant.png` in this repo work, or any "
+            "MIAS database sample from [mammoimage.org](https://www.mammoimage.org/databases/)."
+        ),
+        "unreliable": (
+            "No malignancy verdict shown — this model isn't reliable enough to give one. "
+            "The other two models in this tool report a real prediction, weak or strong, "
+            "because their numbers held up under evaluation. This one didn't: 5-fold "
+            "cross-validation (see reports/mammography_metrics.json) put whole-image "
+            "AUC at 0.49 ± 0.06 — statistically indistinguishable from a coin flip. "
+            "The model does learn real lesion-vs-tissue features (training AUC was "
+            "consistently 0.90+), but MIAS has only 322 images to search a full "
+            "mammogram against, and that isn't enough to turn that into a trustworthy "
+            "whole-image call. The scan and Grad-CAM above are real and shown as-is; "
+            "the confidence number just isn't, so it's not shown."
         ),
     },
 }
@@ -141,6 +185,8 @@ def preprocess(pil_img: Image.Image) -> np.ndarray:
     arr = np.asarray(gray).astype("float32") / 255.0
     arr = arr[np.newaxis, ..., np.newaxis]  # (1, H, W, 1)
     return arr
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -380,23 +426,17 @@ st.html(
 if "mode" not in st.session_state:
     st.session_state.mode = "pneumonia"
 
-nav_col1, nav_col2 = st.columns(2)
-with nav_col1:
-    if st.button(
-        MODES["pneumonia"]["nav_label"],
-        type="primary" if st.session_state.mode == "pneumonia" else "secondary",
-        use_container_width=True,
-    ) and st.session_state.mode != "pneumonia":
-        st.session_state.mode = "pneumonia"
-        st.rerun()
-with nav_col2:
-    if st.button(
-        MODES["breast"]["nav_label"],
-        type="primary" if st.session_state.mode == "breast" else "secondary",
-        use_container_width=True,
-    ) and st.session_state.mode != "breast":
-        st.session_state.mode = "breast"
-        st.rerun()
+nav_cols = st.columns(len(MODES))
+for nav_col, (mode_key, mode_cfg) in zip(nav_cols, MODES.items()):
+    with nav_col:
+        if st.button(
+            mode_cfg["nav_label"],
+            type="primary" if st.session_state.mode == mode_key else "secondary",
+            use_container_width=True,
+            key=f"nav_{mode_key}",
+        ) and st.session_state.mode != mode_key:
+            st.session_state.mode = mode_key
+            st.rerun()
 
 mode = MODES[st.session_state.mode]
 
@@ -423,25 +463,43 @@ metrics = load_metrics(mode["metrics_path"])
 last_conv = find_last_conv_layer(model)
 
 with st.sidebar:
+    folds = metrics.get("cross_validation_folds") if metrics else None
+    sb_sub = (
+        f"{folds}-fold cross-validated, not a single lucky split."
+        if folds else "Measured on held-out test data, not estimated."
+    )
     st.html(
         f"""<div class="sb-title">{icon('activity', 15, 'var(--accent)')}Model performance</div>
-        <div class="sb-sub">Measured on held-out test data, not estimated.</div>"""
+        <div class="sb-sub">{sb_sub}</div>"""
     )
     if metrics:
+        def fmt(key, as_pct):
+            val = metrics[key] * 100 if as_pct else metrics[key]
+            std = metrics.get(f"{key}_std")
+            suffix = "%" if as_pct else ""
+            if std is not None:
+                std = std * 100 if as_pct else std
+                return f"{val:.1f}{suffix} ± {std:.1f}" if as_pct else f"{val:.3f} ± {std:.3f}"
+            return f"{val:.1f}{suffix}" if as_pct else f"{val:.3f}"
+
         rows = [
-            ("target", f"{metrics['accuracy']*100:.1f}%", "Test accuracy"),
-            ("shield", f"{metrics['recall_sensitivity']*100:.1f}%", "Sensitivity (recall)"),
-            ("activity", f"{metrics['auc']:.3f}", "AUC"),
-            ("alert", f"{metrics['false_negative_rate']*100:.1f}%", "False-negative rate"),
+            ("target", fmt("accuracy", True), "Test accuracy"),
+            ("shield", fmt("recall_sensitivity", True), "Sensitivity (recall)"),
+            ("activity", fmt("auc", False), "AUC"),
+            ("alert", fmt("false_negative_rate", True), "False-negative rate"),
         ]
         for ic, val, lbl in rows:
             st.html(
                 f"""<div class="mcard"><div class="ic">{icon(ic, 16, 'var(--accent-ink)')}</div>
                 <div><div class="val">{val}</div><div class="lbl">{lbl}</div></div></div>"""
             )
-        st.html(
-            f'<div class="sb-note">Evaluated on {metrics["test_set_size"]} held-out test images.</div>'
+        note = (
+            f'{folds}-fold cross-validation over {metrics["test_set_size"]} images -- '
+            f"each scored only by a fold that never trained on it."
+            if folds else
+            f'Evaluated on {metrics["test_set_size"]} held-out test images.'
         )
+        st.html(f'<div class="sb-note">{note}</div>')
         with st.expander("Full metrics JSON"):
             st.json(metrics)
     else:
@@ -458,11 +516,29 @@ uploaded = st.file_uploader(mode["upload_label"], type=["jpg", "jpeg", "png"], h
 
 if uploaded is not None:
     pil_img = Image.open(uploaded)
-    img_array = preprocess(pil_img)
 
-    prob = float(model.predict(img_array, verbose=0)[0, 0])
-    label = mode["positive_label"] if prob >= 0.5 else mode["negative_label"]
-    confidence = prob if prob >= 0.5 else 1 - prob
+    if st.session_state.mode == "mammography":
+        # This model was trained on lesion-scale crops, not whole images --
+        # find the most suspicious window first, then treat that crop as
+        # "the uploaded image" for everything below (display, Grad-CAM).
+        gray = np.asarray(pil_img.convert("L")).astype("float32") / 255.0
+        prob, best_crop = sliding_window_predict(gray, model)
+        display_source = Image.fromarray(best_crop)
+        img_array = preprocess(display_source)
+    else:
+        display_source = pil_img
+        img_array = preprocess(pil_img)
+        prob = float(model.predict(img_array, verbose=0)[0, 0])
+
+    # Native to the model for pneumonia/breast (trained and evaluated at
+    # the same scale, so 0.5 is meaningful); for mammography this is a
+    # threshold calibrated in train_mammography_model.py against the
+    # sliding-window aggregate score's own distribution, not the model's
+    # raw per-patch output -- see that script for why 0.5 doesn't apply
+    # once you're averaging many overlapping windows.
+    threshold = metrics.get("decision_threshold", 0.5) if metrics else 0.5
+    label = mode["positive_label"] if prob >= threshold else mode["negative_label"]
+    confidence = prob if prob >= threshold else 1 - prob
     is_pos = label == mode["positive_label"]
 
     heatmap = make_gradcam_heatmap(img_array, model, last_conv)
@@ -471,7 +547,7 @@ if uploaded is not None:
 
     col1, col2 = st.columns(2)
     with col1:
-        st.image(pil_img, use_container_width=True)
+        st.image(display_source, use_container_width=True)
         st.html(
             f'<div class="img-card"><div class="cap">{icon("upload", 14, "var(--accent)")}{mode["uploaded_caption"]}</div></div>'
         )
@@ -481,26 +557,41 @@ if uploaded is not None:
             f'<div class="img-card"><div class="cap">{icon("target", 14, "var(--accent)")}Grad-CAM &mdash; what the model looked at</div></div>'
         )
 
-    verdict_class = "pos" if is_pos else "neg"
-    chip_class = "pos" if is_pos else "neg"
-    verdict_icon = "alert" if is_pos else "check"
-    verdict_color = "var(--bad)" if is_pos else "var(--good)"
-
-    st.html(
-        f"""
-        <div class="result-card">
-          <div class="result-head">
-            <div class="verdict {verdict_class}">
-              <div class="ic">{icon(verdict_icon, 22, verdict_color)}</div>
-              <div><div class="t">{label}</div><div class="s">Model prediction</div></div>
+    if mode.get("unreliable"):
+        # This mode's numbers didn't hold up under cross-validation (see
+        # MODES["mammography"]["unreliable"] for the actual figures) -- the
+        # scan and Grad-CAM above are real, but showing a confidence number
+        # here would present a coin-flip as a finding. Say so plainly
+        # instead of a verdict card.
+        st.html(
+            f"""
+            <div class="banner-warn">
+              <span class="ic">{icon('alert', 18, 'var(--bad)')}</span>
+              <span>{mode['unreliable']}</span>
             </div>
-            <div class="conf-chip {chip_class}">{confidence*100:.1f}% confidence</div>
-          </div>
-          <div class="bar-track"><div class="bar-fill" style="width:{prob*100:.1f}%"></div></div>
-          <div class="bar-caption"><span>{mode['negative_label']}</span><span>{mode['positive_label']} probability: {prob*100:.1f}%</span><span>{mode['positive_label']}</span></div>
-        </div>
-        """
-    )
+            """
+        )
+    else:
+        verdict_class = "pos" if is_pos else "neg"
+        chip_class = "pos" if is_pos else "neg"
+        verdict_icon = "alert" if is_pos else "check"
+        verdict_color = "var(--bad)" if is_pos else "var(--good)"
+
+        st.html(
+            f"""
+            <div class="result-card">
+              <div class="result-head">
+                <div class="verdict {verdict_class}">
+                  <div class="ic">{icon(verdict_icon, 22, verdict_color)}</div>
+                  <div><div class="t">{label}</div><div class="s">Model prediction</div></div>
+                </div>
+                <div class="conf-chip {chip_class}">{confidence*100:.1f}% confidence</div>
+              </div>
+              <div class="bar-track"><div class="bar-fill" style="width:{prob*100:.1f}%"></div></div>
+              <div class="bar-caption"><span>{mode['negative_label']}</span><span>{mode['positive_label']} probability: {prob*100:.1f}%</span><span>{mode['positive_label']}</span></div>
+            </div>
+            """
+        )
 else:
     st.info(f"{mode['upload_label']} above to run a prediction.")
     st.markdown(mode["no_sample_text"])
