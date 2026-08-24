@@ -40,22 +40,85 @@
 
 ## Quick start
 
-All three trained models ship in this repo — no training, no waiting, just run it.
+All three trained models ship in this repo — no training, no waiting, just run it. Pick your OS below for exact, no-experience-needed steps.
 
-### One-click install
+### Step 1: Download
 
-1. Download **[`Medical-Imaging-Screening-Tool.zip`](../../releases/latest)** from the latest release — this is the whole app, everything's inside.
-2. Extract it wherever you'd like it to live, then run the setup script for your OS from inside that folder — **just this once.**
+Go to the **[latest release](../../releases/latest)** and download **`Medical-Imaging-Screening-Tool-vX.X.X.zip`** (the top file under "Assets"). Extract it — most systems do this automatically when you double-click the ZIP, or right-click → "Extract All" (Windows) / it just unzips itself (Mac). Put the resulting folder wherever you want it to live long-term (Desktop, Documents, wherever) — **don't delete it after setup**, unlike some installers, everything runs from inside this folder permanently.
 
-| OS | Run this |
-|---|---|
-| Windows | Double-click **`setup_and_run.bat`** |
-| macOS | Double-click **`setup_and_run.sh`** in Terminal, or run `./setup_and_run.sh` (first time: `chmod +x setup_and_run.sh` if it won't execute) |
-| Linux | Run `./setup_and_run.sh` in a terminal (`chmod +x setup_and_run.sh` first if needed) |
+### Step 2: Run setup (one time only)
 
-It checks for Python (installing it via `winget` on Windows if missing; on macOS/Linux it points you at Homebrew or your package manager instead), sets up an isolated environment right there in that folder, and opens the app. **Keep the folder** — everything lives in it, nothing is installed elsewhere and nothing is added to your Desktop or Start Menu. Next time, just run `run.bat` (Windows) or `run.sh` (macOS/Linux) from that same folder to open the app again — setup only needs to happen once.
+<details open>
+<summary><b>Windows</b></summary>
+<br>
 
-### Any OS: manual setup
+1. Open the extracted folder in File Explorer.
+2. Double-click **`setup_and_run.bat`**.
+3. A black window opens and does its thing — checking for Python (installing it automatically if it's missing), setting up the app, installing dependencies. **This can take several minutes the first time** (TensorFlow alone is ~500MB) — that's normal, let it run.
+4. When it finishes, the app opens automatically in its own window.
+
+If Windows says Python isn't found even after the script tries to install it: open **Settings → Apps → Advanced app settings → App execution aliases**, and turn **off** the switches next to `python.exe` / `python3.exe`, then run `setup_and_run.bat` again. (Windows ships a fake stub that can shadow a real Python install — this fixes it.)
+
+</details>
+
+<details open>
+<summary><b>macOS</b></summary>
+<br>
+
+**A. Open Terminal.** It's an app that lets you type commands instead of clicking icons — don't worry, you're only ever copying and pasting two short lines below. Press `Cmd + Space`, type `Terminal`, press Enter. A plain window with text opens; that's it.
+
+**B. Tell Terminal where the app is.** Type `cd` followed by one space (don't press Enter), then drag the extracted folder from Finder straight into the Terminal window — the folder's location types itself in. Press Enter. (This just means "go to this folder" — every command after this happens inside it.)
+
+**C. Copy and paste these two lines, one at a time, pressing Enter after each:**
+
+```bash
+chmod +x setup_and_run.sh
+```
+```bash
+./setup_and_run.sh
+```
+
+The first line unlocks the setup file so it's allowed to run — every file downloaded from the internet starts locked on Mac, this is normal and not specific to this app. The second line actually starts it.
+
+**D. If you see a popup saying it's from an "unidentified developer":** this is just macOS being cautious about a file that isn't from the App Store — normal for any small app like this one. Open **System Settings → Privacy & Security**, scroll down, and click the **Open Anyway** button that appears there. Then run line C's second command again.
+
+**E. Wait for it to finish.** The first run installs everything the app needs, which can take several minutes (it's downloading a few hundred MB) — that's expected, just let it sit. When it's done, the app opens on its own.
+
+</details>
+
+<details open>
+<summary><b>Linux</b></summary>
+<br>
+
+**A. Open a terminal and go to the extracted folder** (`cd` followed by the folder's path).
+
+**B. Copy and paste these two lines, one at a time:**
+
+```bash
+chmod +x setup_and_run.sh
+```
+```bash
+./setup_and_run.sh
+```
+
+The first line unlocks the file so it's allowed to run (every downloaded file starts locked, this is normal). The second starts it.
+
+**C. If it says Python 3 isn't found**, install it with your distro's package manager — the script prints the exact command for Debian/Ubuntu, Fedora, and Arch when this happens. Run it, then run line B's second command again.
+
+**D. Wait for it to finish.** First run installs everything needed (a few minutes, a few hundred MB) — then the app opens on its own.
+
+</details>
+
+### Step 3: every time after that
+
+You don't need to repeat setup. Just go back into that same folder and run:
+
+- **Windows:** double-click **`run.bat`**
+- **macOS / Linux:** in Terminal, `cd` into the folder and run `./run.sh`
+
+That's it — it opens the dashboard directly, no re-installing anything.
+
+### Any OS: manual setup (for people comfortable with git)
 
 ```bash
 git clone https://github.com/Lavamaster99/ai-pneumonia-xray-classifier.git
@@ -71,16 +134,20 @@ streamlit run app.py
 
 No git? Click **`<> Code`** → **Download ZIP** at the top of this page instead.
 
+### Trying it out
+
 Once it's running, use the switch at the top to pick a mode, then try the matching sample: `examples/sample_pneumonia.png` / `sample_normal.png` for chest X-ray, `examples/sample_benign.png` / `sample_malignant.png` for breast ultrasound, `examples/sample_mammo_normal.png` / `sample_mammo_malignant.png` for mammogram.
 
 <details>
-<summary><b>Stuck?</b> Common issues</summary>
+<summary><b>Still stuck?</b> Common issues</summary>
 <br>
 
-- **"python is not recognized"** (Windows) — Python wasn't added to PATH during install; reinstall and tick that box, or use `py` instead of `python` above.
-- **macOS says the script is from an "unidentified developer"** — right-click the script → Open → confirm. Only needed the first time; it's an unsigned script, not a bug.
+- **"python is not recognized"** (Windows, manual setup only) — Python wasn't added to PATH during install; reinstall and tick that box, or use `py` instead of `python` above. (The one-click installer above handles this automatically.)
+- **macOS says the script is from an "unidentified developer"** — see Step 2 above; this is standard for any unsigned script, not a bug.
+- **`./setup_and_run.sh` says "Permission denied"** (macOS/Linux) — you skipped `chmod +x setup_and_run.sh`; run that first.
 - **Port 8501 already in use** — another Streamlit app is running; close it, or run `streamlit run app.py --server.port 8502`.
 - **Install is slow** — normal on first run; TensorFlow alone is ~500MB.
+- **Nothing happens / errors about missing files** — you probably downloaded just the loose `.bat`/`.sh` files instead of the full ZIP. Go back to Step 1 and download `Medical-Imaging-Screening-Tool-vX.X.X.zip` specifically — the standalone scripts on the release page are there for inspection only and need the rest of the project alongside them to work.
 
 </details>
 
